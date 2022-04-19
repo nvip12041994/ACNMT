@@ -400,6 +400,7 @@ def train(
     max_len_hypo = math.ceil(max_len_src*translator.max_len_a) + translator.max_len_b
     # state_list, action_list, reward_list, next_state_list, done_list = [], [], [], [], []
     returns = []
+    dis_accuracy = []
     user_parameter = {
         "max_len_src": max_len_src,
         "max_len_target": max_len_target,
@@ -410,6 +411,7 @@ def train(
         "d_optimizer": d_optimizer,
         "tokenizer": trainer.task.tokenizer,
         "returns" : returns,
+        "dis_accuracy": dis_accuracy,
         
         # "state_list": state_list,
         # "action_list": action_list,
@@ -535,6 +537,7 @@ def train(
                                         bleu = bleus,
                                     )
                     #b = time.time() - start_time
+                    user_parameter["dis_accuracy"].append(discriminator_acc.cpu().detach().numpy().item())
                     #print("discriminator accuracy{:.2f}".format(discriminator_acc*100))
                     del target_tokens
                     del src_tokens
@@ -545,10 +548,12 @@ def train(
             # log mid-epoch stats
             num_updates = trainer.get_num_updates()
             if num_updates % cfg.common.log_interval == 0:
-            #if num_updates % 10 == 0:
+            #if num_updates % 2 == 0:
                 stats = get_training_stats(metrics.get_smoothed_values("train_inner"))
-                progress.log(stats, tag="train_inner", step=num_updates)
-                #print("discriminator accuracy = {:.2f}".format(discriminator_acc*100))
+                progress.log(stats, tag="train_inner", step=num_updates)                
+                acc = sum(user_parameter["dis_accuracy"])/len(user_parameter["dis_accuracy"])
+                user_parameter["dis_accuracy"] = []
+                print(">------- discriminator accuracy = {:.2f} -------<".format(acc*100))
                 # reset mid-epoch stats after each log interval
                 # the end-of-epoch stats will still be preserved
                 metrics.reset_meters("train_inner")
