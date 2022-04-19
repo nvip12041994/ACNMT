@@ -165,11 +165,16 @@ def main(cfg: FairseqConfig) -> None:
     #----------------------------------------------------------------
     use_cuda = (torch.cuda.device_count() >= 1)
     discriminator = Discriminator_lightconv(cfg, task, kernel_size=3)
-    d_optimizer = eval("torch.optim." + 'SGD')(filter(lambda x: x.requires_grad,
+    # d_optimizer = eval("torch.optim." + 'SGD')(filter(lambda x: x.requires_grad,
+    #                                                              discriminator.parameters()),
+    #                                                       0.0001,
+    #                                                       momentum=0.9,
+    #                                                       nesterov=True)
+    d_optimizer = eval("torch.optim." + 'Adam')(filter(lambda x: x.requires_grad,
                                                                  discriminator.parameters()),
-                                                          0.0001,
-                                                          momentum=0.9,
-                                                          nesterov=True)
+                                                          lr = 0.0005,
+                                                          betas=(0.9,0.98),
+                                                          amsgrad=False)
     if use_cuda:
         discriminator.cuda()
     else:
