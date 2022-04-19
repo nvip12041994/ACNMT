@@ -172,7 +172,7 @@ def main(cfg: FairseqConfig) -> None:
     #                                                       nesterov=True)
     d_optimizer = eval("torch.optim." + 'Adam')(filter(lambda x: x.requires_grad,
                                                                  discriminator.parameters()),
-                                                          lr = 0.0005,
+                                                          lr = 0.005,
                                                           betas=(0.9,0.98),
                                                           amsgrad=False)
     if use_cuda:
