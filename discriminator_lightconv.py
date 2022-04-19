@@ -100,8 +100,8 @@ class Discriminator_lightconv(nn.Module):
             else None
         )
         # Config how many layer and attention head for lightconv
-        encoder_layers = 7
-        encoder_kernel_size_list = [3,7,15,31,31,31,31]
+        encoder_layers = 4
+        encoder_kernel_size_list = [3,7,15,31]
     
         dynamic_encoder_config = Encoder_config(encoder_conv_dim = 512,
                                             encoder_embed_dim = embed_dim,
