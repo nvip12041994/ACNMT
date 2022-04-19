@@ -508,7 +508,7 @@ def train(
             
             # part I: train the generator
             log_output = trainer.train_step(samples, user_parameter)
-            # part II: train the discriminator
+            # # part II: train the discriminator
             # if user_parameter is not None:
             #     for i, sample in enumerate(samples):
             #         if "target" in sample:
@@ -550,16 +550,9 @@ def train(
                 metrics.reset_meters("train_inner")
 
         end_of_epoch = not itr.has_next()
-
-        valid_losses, should_stop = validate_and_save(
-            cfg, trainer, task, epoch_itr, valid_subsets, end_of_epoch, user_parameter
-        )
         
-        if should_stop:
-            break
-        
-    for i, samples in enumerate(progress):
-        if user_parameter is not None:
+        # part II: train the discriminator
+        if user_parameter is not None and end_of_epoch:
             for i, sample in enumerate(samples):
                 if "target" in sample:
                     sample["target"] =  sample["target"].to(device)
@@ -581,12 +574,20 @@ def train(
                                     bleu = bleus,
                                 )
                 #b = time.time() - start_time
-                #print("discriminator accuracy{:.2f}".format(discriminator_acc*100))
+                print("discriminator accuracy{:.2f}".format(discriminator_acc*100))
                 del target_tokens
                 del src_tokens
                 del hypo_tokens
                 torch.cuda.empty_cache()
-                print(discriminator_acc)
+
+        valid_losses, should_stop = validate_and_save(
+            cfg, trainer, task, epoch_itr, valid_subsets, end_of_epoch, user_parameter
+        )
+        
+        if should_stop:
+            break
+        
+
     # log end-of-epoch stats
     logger.info("end of epoch {} (average epoch stats below)".format(epoch_itr.epoch))
     stats = get_training_stats(metrics.get_smoothed_values("train"))
