@@ -511,7 +511,7 @@ def train(
             # enter action into the env
             
             # part I: train the generator
-            #log_output = trainer.train_step(samples, user_parameter)
+            log_output = trainer.train_step(samples, user_parameter)
             # part II: train the discriminator
             if user_parameter is not None:
                 for i, sample in enumerate(samples):

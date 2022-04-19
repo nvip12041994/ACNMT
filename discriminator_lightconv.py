@@ -159,7 +159,7 @@ class Discriminator_lightconv(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
-       
+
         self.classifier = nn.Sequential(
             nn.Dropout(0.3),
             Linear(864, 20),
