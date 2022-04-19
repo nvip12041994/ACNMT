@@ -175,11 +175,12 @@ def main(cfg: FairseqConfig) -> None:
     else:
         discriminator.cpu()
     print("Discriminator loaded successfully!")
-    discriminator_path = "{}/discriminator_{}.pt".format(trainer.cfg.checkpoint.save_dir,epoch_itr.epoch)
+    #discriminator_path = "{}/discriminator_{}.pt".format(trainer.cfg.checkpoint.save_dir,epoch_itr.epoch)
+    discriminator_path = "{}/discriminator.pt".format(trainer.cfg.checkpoint.save_dir)
     print(discriminator_path)
     
     if os.path.isfile(discriminator_path):
-        print("Load from discriminator_{}.pt".format(epoch_itr.epoch))
+        #print("Load from discriminator_{}.pt".format(epoch_itr.epoch))
         checkpoint = torch.load(discriminator_path)
         discriminator.load_state_dict(checkpoint['model_state_dict'])
         d_optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -194,8 +195,6 @@ def main(cfg: FairseqConfig) -> None:
     d_criterion = torch.nn.BCELoss()
     # print("Discriminator criterion loaded successfully!")
     # pg_criterion = PGLoss(ignore_index=task.tgt_dict.pad(), size_average=False,reduce=True)
-
-    print("Policy gradient criterion loaded successfully!")
     # Initialize generator
     translator = SequenceGenerator(
         [model],
