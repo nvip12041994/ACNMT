@@ -176,7 +176,7 @@ def main(cfg: FairseqConfig) -> None:
         discriminator.cpu()
     print("Discriminator loaded successfully!")
     discriminator_path = "{}/discriminator_{}.pt".format(trainer.cfg.checkpoint.save_dir,epoch_itr.epoch)
-    
+    print(discriminator_path)
     
     if os.path.isfile(discriminator_path):
         print("Load from discriminator_{}.pt".format(epoch_itr.epoch))
@@ -197,24 +197,24 @@ def main(cfg: FairseqConfig) -> None:
 
     print("Policy gradient criterion loaded successfully!")
     # Initialize generator
-    # translator = SequenceGenerator(
-    #     [model],
-    #     task.tgt_dict,
-    #     search_strategy = search.Sampling(tgt_dict = task.tgt_dict,sampling_topk=-1, sampling_topp=0.95),
-        
-    #     beam_size=1,
-    #     max_len_a=1.2,
-    #     max_len_b=10,
-    # )
-    
     translator = SequenceGenerator(
         [model],
         task.tgt_dict,
         search_strategy = search.Sampling(tgt_dict = task.tgt_dict,sampling_topk=-1, sampling_topp=0.95),
         
         beam_size=1,
-        match_source_len=True,
+        max_len_a=1.2,
+        max_len_b=10,
     )
+    
+    # translator = SequenceGenerator(
+    #     [model],
+    #     task.tgt_dict,
+    #     search_strategy = search.Sampling(tgt_dict = task.tgt_dict,sampling_topk=-1, sampling_topp=0.95),
+        
+    #     beam_size=1,
+    #     match_source_len=True,
+    # )
 
     # if use_cuda:
     #     translator.cuda()
