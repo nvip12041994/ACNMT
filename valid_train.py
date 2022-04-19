@@ -506,35 +506,35 @@ def train(
             # enter action into the env
             
             # part I: train the generator
-            log_output = trainer.train_step(samples, user_parameter)
-            # # part II: train the discriminator
-            # if user_parameter is not None:
-            #     for i, sample in enumerate(samples):
-            #         if "target" in sample:
-            #             sample["target"] =  sample["target"].to(device)
-            #             sample['net_input']['src_tokens'] = sample['net_input']['src_tokens'].to(device)
-            #         else:
-            #             sample = sample.to(device)
+            #log_output = trainer.train_step(samples, user_parameter)
+            # part II: train the discriminator
+            if user_parameter is not None:
+                for i, sample in enumerate(samples):
+                    if "target" in sample:
+                        sample["target"] =  sample["target"].to(device)
+                        sample['net_input']['src_tokens'] = sample['net_input']['src_tokens'].to(device)
+                    else:
+                        sample = sample.to(device)
                     
-            #         #start_time = time.time()
-            #         # select an action from the agent's policy
-            #         src_tokens, target_tokens, hypo_tokens, bleus = get_token_translate_from_sample(model,user_parameter,
-            #                                                     sample, scorer,task.source_dictionary,task.target_dictionary)
-            #         #a = time.time() - start_time
+                    #start_time = time.time()
+                    # select an action from the agent's policy
+                    src_tokens, target_tokens, hypo_tokens, bleus = get_token_translate_from_sample(model,user_parameter,
+                                                                sample, scorer,task.source_dictionary,task.target_dictionary)
+                    #a = time.time() - start_time
                     
-            #         #start_time = time.time()
-            #         discriminator_acc = train_discriminator(user_parameter,
-            #                             hypo_input = hypo_tokens,
-            #                             target_input = target_tokens,
-            #                             src_input = src_tokens,
-            #                             bleu = bleus,
-            #                         )
-            #         #b = time.time() - start_time
-            #         #print("discriminator accuracy{:.2f}".format(discriminator_acc*100))
-            #         del target_tokens
-            #         del src_tokens
-            #         del hypo_tokens
-            #         torch.cuda.empty_cache()
+                    #start_time = time.time()
+                    discriminator_acc = train_discriminator(user_parameter,
+                                        hypo_input = hypo_tokens,
+                                        target_input = target_tokens,
+                                        src_input = src_tokens,
+                                        bleu = bleus,
+                                    )
+                    #b = time.time() - start_time
+                    #print("discriminator accuracy{:.2f}".format(discriminator_acc*100))
+                    del target_tokens
+                    del src_tokens
+                    del hypo_tokens
+                    torch.cuda.empty_cache()
             #print("After batch {0} GPU memory used {1:.3f}".format(i,get_gpu_memory_map()))
             
             # log mid-epoch stats
@@ -550,35 +550,6 @@ def train(
 
         end_of_epoch = not itr.has_next()
         
-        # part II: train the discriminator
-        if user_parameter is not None and end_of_epoch:
-            for i, sample in enumerate(samples):
-                if "target" in sample:
-                    sample["target"] =  sample["target"].to(device)
-                    sample['net_input']['src_tokens'] = sample['net_input']['src_tokens'].to(device)
-                else:
-                    sample = sample.to(device)
-                
-                #start_time = time.time()
-                # select an action from the agent's policy
-                src_tokens, target_tokens, hypo_tokens, bleus = get_token_translate_from_sample(model,user_parameter,
-                                                            sample, scorer,task.source_dictionary,task.target_dictionary)
-                #a = time.time() - start_time
-                
-                #start_time = time.time()
-                discriminator_acc = train_discriminator(user_parameter,
-                                    hypo_input = hypo_tokens,
-                                    target_input = target_tokens,
-                                    src_input = src_tokens,
-                                    bleu = bleus,
-                                )
-                #b = time.time() - start_time
-                print("discriminator accuracy{:.2f}".format(discriminator_acc*100))
-                del target_tokens
-                del src_tokens
-                del hypo_tokens
-                torch.cuda.empty_cache()
-
         valid_losses, should_stop = validate_and_save(
             cfg, trainer, task, epoch_itr, valid_subsets, end_of_epoch, user_parameter
         )
