@@ -332,7 +332,7 @@ def get_token_translate_from_sample(network,user_parameter,sample,scorer,src_dic
         hypos = translator.generate([network],sample = sample)
 
     tmp = []
-    bleus = []
+    
     for i, sample_id in enumerate(sample["id"].tolist()):
         #print("==================")
         has_target = sample["target"] is not None
@@ -385,7 +385,7 @@ def get_token_translate_from_sample(network,user_parameter,sample,scorer,src_dic
         hypo_tokens_out[i]= tensor_padding_to_fixed_length(tmp[i],max_len,tgt_dict.pad())
 
     torch.cuda.empty_cache()
-    return src_tokens,target_tokens,hypo_tokens_out,bleus
+    return src_tokens,target_tokens,hypo_tokens_out
 
 #-------------------------------------------------------------
 @metrics.aggregate("train")
@@ -423,37 +423,32 @@ def train(
     scorer = scoring.build_scorer("bleu", task.target_dictionary)
     device = torch.device(torch.cuda.current_device() if torch.cuda.is_available() else "cpu")
     
-    def train_discriminator(user_parameter,hypo_input,src_input,target_input,bleu):
+    def train_discriminator(user_parameter,hypo_input,src_input,target_input, returns):
         user_parameter["discriminator"].train()
         user_parameter["d_criterion"].train()
-        returns = user_parameter["returns"]
-        if returns.size == 0:
+        
+        if returns.shape[0] == 0:
             fake_labels = Variable(torch.zeros(src_input.size(0)).float())
         else:
-            returns = returns/returns.size
-            fake_labels = Variable(torch.tensor(returns).float())
+            fake_labels = Variable(returns)
         #fake_labels = Variable(torch.zeros(src_input.size(0)).float())
         fake_labels = fake_labels.to(src_input.device)
         
         true_labels = Variable(torch.ones(target_input.size(0)).float())
         true_labels = true_labels.to(target_input.device)
         labels = torch.cat((fake_labels,true_labels))
-        # fake_labels = torch.tensor(bleu)
-        # fake_labels = fake_labels.to(target_input.device)
+        
         disc_out = user_parameter["discriminator"](src_input, hypo_input)
         _disc_out = user_parameter["discriminator"](src_input, target_input)
-        
         input_d_loss = torch.cat((disc_out,_disc_out))
-        batch_input = input_d_loss.view(-1)
-        
+        batch_input = input_d_loss.view(-1)        
         d_loss = user_parameter["d_criterion"](batch_input, labels)
-        
-        
-        acc = torch.sum(torch.round(input_d_loss).squeeze(1) == torch.round(labels)).float() / len(labels)
         user_parameter["d_optimizer"].zero_grad()
         d_loss.backward()
         user_parameter["d_optimizer"].step()
         del d_loss
+        
+        acc = torch.sum(torch.round(input_d_loss).squeeze(1) == torch.round(labels)).float() / len(labels)
         torch.cuda.empty_cache()
         return acc
     
@@ -524,26 +519,32 @@ def train(
                     else:
                         sample = sample.to(device)
                     
-                    #start_time = time.time()
                     # select an action from the agent's policy
-                    src_tokens, target_tokens, hypo_tokens, bleus = get_token_translate_from_sample(model,user_parameter,
+                    src_tokens, target_tokens, hypo_tokens = get_token_translate_from_sample(model,user_parameter,
                                                                 sample, scorer,task.source_dictionary,task.target_dictionary)
-                    #a = time.time() - start_time
+                    returns = user_parameter["returns"]
+                    returns = returns/returns.size
+                    returns = torch.tensor(returns).float()
                     
-                    #start_time = time.time()
-                    discriminator_acc = train_discriminator(user_parameter,
-                                        hypo_input = hypo_tokens,
-                                        target_input = target_tokens,
-                                        src_input = src_tokens,
-                                        bleu = bleus,
+                    mini_batch = 16
+                    returns = torch.split(returns, mini_batch)
+                    src_tokens = torch.split(src_tokens, mini_batch)
+                    target_tokens = torch.split(target_tokens, mini_batch)
+                    hypo_tokens = torch.split(hypo_tokens,mini_batch)
+
+                    for i in range(len(src_tokens)):
+                        discriminator_acc = train_discriminator(user_parameter,
+                                        hypo_input = hypo_tokens[i],
+                                        target_input = target_tokens[i],
+                                        src_input = src_tokens[i],
+                                        returns = returns[i],
                                     )
-                    #b = time.time() - start_time
-                    user_parameter["dis_accuracy"].append(discriminator_acc.cpu().detach().numpy().item())
-                    #print("discriminator accuracy{:.2f}".format(discriminator_acc*100))
+                        user_parameter["dis_accuracy"].append(discriminator_acc.cpu().detach().numpy().item())
                     del target_tokens
                     del src_tokens
                     del hypo_tokens
                     torch.cuda.empty_cache()
+                    
             #print("After batch {0} GPU memory used {1:.3f}".format(i,get_gpu_memory_map()))
             
             # log mid-epoch stats
