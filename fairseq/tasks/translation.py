@@ -375,10 +375,10 @@ class TranslationTask(FairseqTask):
             )
         return model
 
-    def valid_step(self, sample, model, criterion):
+    def valid_step(self, sample, model, criterion, user_parameter):
         loss, sample_size, logging_output = super().valid_step(sample, model, criterion)
         if self.cfg.eval_bleu:
-            bleu = self._inference_with_bleu(self.sequence_generator, sample, model)
+            bleu = self._inference_with_bleu(self.sequence_generator, sample, model, user_parameter)
             logging_output["_bleu_sys_len"] = bleu.sys_len
             logging_output["_bleu_ref_len"] = bleu.ref_len
             # we split counts into separate entries so that they can be
@@ -446,7 +446,7 @@ class TranslationTask(FairseqTask):
         """Return the target :class:`~fairseq.data.Dictionary`."""
         return self.tgt_dict
 
-    def _inference_with_bleu(self, generator, sample, model):
+    def _inference_with_bleu(self, generator, sample, model, user_parameter):
         import sacrebleu
 
         def decode(toks, escape_unk=False):
@@ -468,6 +468,8 @@ class TranslationTask(FairseqTask):
         hyps, refs = [], []
         for i in range(len(gen_out)):
             hyps.append(decode(gen_out[i][0]["tokens"]))
+            user_parameter["valid_srcs"].append(sample['net_input']['src_tokens'][i])
+            user_parameter["valid_hyps"].append(gen_out[i][0]["tokens"])
             refs.append(
                 decode(
                     utils.strip_pad(sample["target"][i], self.tgt_dict.pad()),

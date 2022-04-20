@@ -219,15 +219,12 @@ class CrossEntropyCriterion(FairseqCriterion):
         #loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
         bsz, src_len = sample['net_input']['src_tokens'].size()[:2]
         if user_parameter is not None:
-        #if False:
-            #start_time = time.time()
             observations, target_tokens, actions, bleus = get_token_translate_from_sample(model,
                                                                                             user_parameter,
                                                                                             sample,
                                                                                             self.scorer,
                                                                                             self.src_dict,
                                                                                             self.tgt_dict)
-            #a = time.time() - start_time
             with torch.no_grad():
                 values = user_parameter["discriminator"](observations, actions)
             dones = np.empty((bsz,), dtype=np.bool_)
@@ -262,9 +259,9 @@ class CrossEntropyCriterion(FairseqCriterion):
                 #reduction="mean" if reduce else "none",
                 reduction="none",
             )
-            #average_reward = torch.mean(reward)
             loss = loss_action.view(-1,bsz) * advantages.to(lprobs.device) 
             loss = torch.mean(loss) + self.entropy_coeff * loss_entropy
+            loss = loss * (1 - (0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"]))
         else:
             loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
 

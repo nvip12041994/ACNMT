@@ -14,6 +14,7 @@ from typing import Dict, Optional, Any, List, Tuple, Callable
 import math
 import numpy as np
 import torch
+from tqdm import tqdm
 from fairseq import (
     checkpoint_utils,
     options,
@@ -401,6 +402,10 @@ def train(
     # state_list, action_list, reward_list, next_state_list, done_list = [], [], [], [], []
     returns = []
     dis_accuracy = []
+    valid_hyps = []
+    valid_bleu = 0
+    valid_srcs = []
+    valid_discs = 0
     user_parameter = {
         "max_len_src": max_len_src,
         "max_len_target": max_len_target,
@@ -413,6 +418,10 @@ def train(
         "returns" : returns,
         "dis_accuracy": dis_accuracy,
         
+        "valid_hyps" : valid_hyps,
+        "valid_srcs" : valid_srcs,
+        "valid_bleu" : valid_bleu,
+        "valid_discs" : valid_discs,
         # "state_list": state_list,
         # "action_list": action_list,
         # "reward_list": reward_list,
@@ -499,7 +508,8 @@ def train(
     should_stop = False
     num_updates = trainer.get_num_updates()
     logger.info("Start iterating over samples")
-    #valid_losses = validate(cfg, trainer, task, epoch_itr, valid_subsets)
+    logger.info("Checking best checkpoint at starting")
+    valid_losses = validate(cfg, trainer, task, epoch_itr, valid_subsets, user_parameter)
     #print(valid_losses)
     for i, samples in enumerate(progress):     
         with metrics.aggregate("train_inner"), torch.autograd.profiler.record_function(
@@ -652,7 +662,7 @@ def validate_and_save(
     # Validate
     valid_losses = [None]
     if do_validate:
-        valid_losses = validate(cfg, trainer, task, epoch_itr, valid_subsets)
+        valid_losses = validate(cfg, trainer, task, epoch_itr, valid_subsets, user_parameter)
 
     should_stop |= should_stop_early(cfg, valid_losses[0])
     
@@ -684,6 +694,7 @@ def validate(
     task: tasks.FairseqTask,
     epoch_itr,
     subsets: List[str],
+    user_parameter,
 ) -> List[Optional[float]]:
     """Evaluate the model on the validation set(s) and return the losses."""
 
@@ -728,13 +739,25 @@ def validate(
         # don't pollute other aggregators (e.g., train meters)
         with metrics.aggregate(new_root=True) as agg:
             for sample in progress:
-                trainer.valid_step(sample)
+                trainer.valid_step(sample, user_parameter)
 
+        values = []
+        with torch.no_grad():
+            for i in tqdm(range(len(user_parameter["valid_srcs"])), desc ="Get disc out average: "):
+                observations = user_parameter["valid_srcs"][i].unsqueeze(0)
+                actions = user_parameter["valid_hyps"][i].unsqueeze(0)
+                value = user_parameter["discriminator"](observations, actions)
+                values.append(value.cpu().detach().numpy()[0][0])
+        
         # log validation stats
         stats = get_valid_stats(cfg, trainer, agg.get_smoothed_values())
         progress.print(stats, tag=subset, step=trainer.get_num_updates())
 
         valid_losses.append(stats[cfg.checkpoint.best_checkpoint_metric])
+        user_parameter["valid_discs"] = sum(values)/len(values)
+        user_parameter["valid_bleu"] = valid_losses/100
+        user_parameter["valid_hyps"] = []
+        user_parameter["valid_srcs"] = []
     return valid_losses
 
 
