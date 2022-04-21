@@ -508,7 +508,7 @@ def train(
     should_stop = False
     num_updates = trainer.get_num_updates()
     logger.info("Start iterating over samples")
-    logger.info("Checking best checkpoint at starting")
+    #logger.info("Checking best checkpoint at starting")
     #valid_losses = validate(cfg, trainer, task, epoch_itr, valid_subsets, user_parameter)
     #print(valid_losses)
     for i, samples in enumerate(progress):     
@@ -788,6 +788,7 @@ def cli_main(
                         #'--label-smoothing', '0.1',
                         #'--seed', '2048',
                         #'--max-tokens', '200',
+                        '--fp16',
                         '--batch-size', '32', #16
                         #'--max-epoch', '33',
                         '--lr-scheduler', 'inverse_sqrt',
