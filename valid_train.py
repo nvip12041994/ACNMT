@@ -509,7 +509,7 @@ def train(
     num_updates = trainer.get_num_updates()
     logger.info("Start iterating over samples")
     logger.info("Checking best checkpoint at starting")
-    valid_losses = validate(cfg, trainer, task, epoch_itr, valid_subsets, user_parameter)
+    #valid_losses = validate(cfg, trainer, task, epoch_itr, valid_subsets, user_parameter)
     #print(valid_losses)
     for i, samples in enumerate(progress):     
         with metrics.aggregate("train_inner"), torch.autograd.profiler.record_function(
