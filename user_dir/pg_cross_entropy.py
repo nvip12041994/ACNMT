@@ -261,7 +261,7 @@ class CrossEntropyCriterion(FairseqCriterion):
             )
             loss = loss_action.view(-1,bsz) * advantages.to(lprobs.device) 
             loss = torch.mean(loss) + self.entropy_coeff * loss_entropy
-            loss = loss * (1 - (0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"]))
+            loss = loss * (0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"])
         else:
             loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
 

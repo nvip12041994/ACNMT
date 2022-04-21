@@ -403,9 +403,9 @@ def train(
     returns = []
     dis_accuracy = []
     valid_hyps = []
-    valid_bleu = 0
+    valid_bleu = 0.269 #Last point
     valid_srcs = []
-    valid_discs = 0
+    valid_discs = 0.45 #last point
     user_parameter = {
         "max_len_src": max_len_src,
         "max_len_target": max_len_target,
@@ -788,7 +788,7 @@ def cli_main(
                         #'--label-smoothing', '0.1',
                         #'--seed', '2048',
                         #'--max-tokens', '200',
-                        '--fp16',
+                        #'--fp16',
                         '--batch-size', '32', #16
                         #'--max-epoch', '33',
                         '--lr-scheduler', 'inverse_sqrt',
