@@ -755,7 +755,7 @@ def validate(
 
         valid_losses.append(stats[cfg.checkpoint.best_checkpoint_metric])
         user_parameter["valid_discs"] = sum(values)/len(values)
-        user_parameter["valid_bleu"] = valid_losses/100
+        user_parameter["valid_bleu"] = valid_losses[0]/100
         user_parameter["valid_hyps"] = []
         user_parameter["valid_srcs"] = []
     return valid_losses
