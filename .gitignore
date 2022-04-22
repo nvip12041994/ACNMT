@@ -129,6 +129,7 @@ dmypy.json
 .pyre/
 
 **/checkpoints
+**/experimental_result/result
 **/.tabnine.model
 **/.vscode
 #**/fairseq/modules/lightconv_layer

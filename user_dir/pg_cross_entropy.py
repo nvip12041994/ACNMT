@@ -218,7 +218,8 @@ class CrossEntropyCriterion(FairseqCriterion):
         
         #loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
         bsz, src_len = sample['net_input']['src_tokens'].size()[:2]
-        if user_parameter is not None:
+        #if user_parameter is not None:
+        if False:
             observations, target_tokens, actions, bleus = get_token_translate_from_sample(model,
                                                                                             user_parameter,
                                                                                             sample,
@@ -264,6 +265,7 @@ class CrossEntropyCriterion(FairseqCriterion):
             loss = loss * (0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"])
         else:
             loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
+            loss = loss * (0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"])
 
         sample_size = (
             sample["target"].size(
@@ -291,7 +293,7 @@ class CrossEntropyCriterion(FairseqCriterion):
             lprobs,
             target,
             ignore_index=self.padding_idx,
-            reduction="mean" if reduce else "none",
+            reduction="sum" if reduce else "none", #mean
             # reduction="none",
         )
         return loss, loss
@@ -305,7 +307,7 @@ class CrossEntropyCriterion(FairseqCriterion):
 
         # we divide by log(2) to convert the loss from base e to base 2
         metrics.log_scalar(
-            "loss", loss_sum / math.log(2), sample_size, round=3
+            "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
         )
         if sample_size != ntokens:
             metrics.log_scalar(

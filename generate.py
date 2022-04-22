@@ -427,6 +427,7 @@ def cli_main():
         # Writing to sample.json
         with open(path, "w") as outfile:
             outfile.write(json_object)
-        
+
+#scp experimental_result/result/test.json nvip@150.65.178.203:/home/nvip/Data/ACNMT/experimental_result/result/
 if __name__ == "__main__":
     cli_main()
