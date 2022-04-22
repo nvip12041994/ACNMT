@@ -417,7 +417,7 @@ def cli_main():
                 bleu[re.findall(r'\d+',filenames[i])[0]] = format(result.score(), '.2f')
             
     path = "./experimental_result/result/test.json"
-    for i in range(len(bleu)):
+    for i in range(len(last_best)):
         print(last_best[i])
     
     if bleu:
