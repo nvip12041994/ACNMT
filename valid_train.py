@@ -658,7 +658,7 @@ def validate_and_save(
         )
     ) and not cfg.dataset.disable_validation
     # #test
-    #do_validate = True
+    do_validate = True
     # Validate
     valid_losses = [None]
     if do_validate:
@@ -788,8 +788,8 @@ def cli_main(
                         #'--label-smoothing', '0.1',
                         #'--seed', '2048',
                         #'--max-tokens', '200',
-                        #'--fp16',
-                        '--batch-size', '32', #16
+                        '--fp16',
+                        '--batch-size', '192', #16
                         #'--max-epoch', '33',
                         '--lr-scheduler', 'inverse_sqrt',
                         '--weight-decay', '0.0',

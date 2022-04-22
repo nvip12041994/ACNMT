@@ -217,55 +217,59 @@ class CrossEntropyCriterion(FairseqCriterion):
         net_output = model(**sample["net_input"])
         
         #loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
-        bsz, src_len = sample['net_input']['src_tokens'].size()[:2]
-        #if user_parameter is not None:
-        if False:
-            observations, target_tokens, actions, bleus = get_token_translate_from_sample(model,
-                                                                                            user_parameter,
-                                                                                            sample,
-                                                                                            self.scorer,
-                                                                                            self.src_dict,
-                                                                                            self.tgt_dict)
-            with torch.no_grad():
-                values = user_parameter["discriminator"](observations, actions)
-            dones = np.empty((bsz,), dtype=np.bool_)
+        # bsz, src_len = sample['net_input']['src_tokens'].size()[:2]
+        # if user_parameter is not None:
+        #     observations, target_tokens, actions, bleus = get_token_translate_from_sample(model,
+        #                                                                                     user_parameter,
+        #                                                                                     sample,
+        #                                                                                     self.scorer,
+        #                                                                                     self.src_dict,
+        #                                                                                     self.tgt_dict)
+        #     with torch.no_grad():
+        #         values = user_parameter["discriminator"](observations, actions)
+        #     dones = np.empty((bsz,), dtype=np.bool_)
             
-            for i,bleu in enumerate(bleus):
-                if bleu >=0.5:
-                    dones[i] = True
-                else:
-                    dones[i] = False
+        #     for i,bleu in enumerate(bleus):
+        #         if bleu >=0.5:
+        #             dones[i] = True
+        #         else:
+        #             dones[i] = False
                         
-            # Update episode_count
-            # If our epiosde didn't end on the last step we need to compute the value for the last state
-            if dones[-1]:
-                next_value = 0
-            else:
-                next_value = values[-1]
+        #     # Update episode_count
+        #     # If our epiosde didn't end on the last step we need to compute the value for the last state
+        #     if dones[-1]:
+        #         next_value = 0
+        #     else:
+        #         next_value = values[-1]
                 
-            #episode_count = sum(dones)
+        #     #episode_count = sum(dones)
             
-            # Compute returns and advantages
-            returns, advantages = self._returns_advantages(bleus, dones, values, next_value)
-            user_parameter["returns"] = returns
-            # Learning step !
-            lprobs, target = self.compute_lprob(model, net_output, sample)                
-            loss_entropy = (torch.exp(lprobs)* lprobs).sum(-1).mean()
+        #     # Compute returns and advantages
+        #     returns, advantages = self._returns_advantages(bleus, dones, values, next_value)
+        #     user_parameter["returns"] = returns
+        #     # Learning step !
+        #     lprobs, target = self.compute_lprob(model, net_output, sample)                
+        #     loss_entropy = (torch.exp(lprobs)* lprobs).sum(-1).mean()
             
-            lprobs = lprobs.view(-1, lprobs.size(-1))
-            loss_action = F.nll_loss(
-                lprobs,
-                target,
-                ignore_index=self.padding_idx,
-                #reduction="mean" if reduce else "none",
-                reduction="none",
-            )
-            loss = loss_action.view(-1,bsz) * advantages.to(lprobs.device) 
-            loss = torch.mean(loss) + self.entropy_coeff * loss_entropy
+        #     lprobs = lprobs.view(-1, lprobs.size(-1))
+        #     loss_action = F.nll_loss(
+        #         lprobs,
+        #         target,
+        #         ignore_index=self.padding_idx,
+        #         #reduction="mean" if reduce else "none",
+        #         reduction="none",
+        #     )
+        #     loss = loss_action.view(-1,bsz) * advantages.to(lprobs.device) 
+        #     loss = torch.mean(loss) + self.entropy_coeff * loss_entropy
+        #     loss = loss * (0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"])
+        # else:
+        #     loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
+            
+        if user_parameter is not None:
+            loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
             loss = loss * (0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"])
         else:
             loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
-            loss = loss * (0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"])
 
         sample_size = (
             sample["target"].size(
