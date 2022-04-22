@@ -20,6 +20,8 @@ from fairseq.logging import progress_bar
 from fairseq.logging.meters import StopwatchMeter, TimeMeter
 from omegaconf import DictConfig
 
+import re
+import json
 
 def main(cfg: DictConfig):
     if isinstance(cfg, Namespace):
@@ -401,16 +403,30 @@ def cli_main():
     #main(args)
     cur_model = ['./data-bin/iwslt15.tokenized.en-vi','--beam','5', '--path', '','--bpe', 'subword_nmt', '--bpe-codes', 'bpe_code', '--sacrebleu', '--quiet']
     filenames = next(walk('checkpoints/transformer/'), (None, None, []))[2]
-    bleu = []
+    bleu = {}
+    last_best = []
     for i in range(len(filenames)):
         parser = options.get_generation_parser()
         if "checkpoint" in filenames[i]:
             cur_model[4] = 'checkpoints/transformer/' + filenames[i]
             args = options.parse_args_and_arch(parser, input_args = cur_model)
             result = main(args)
-            bleu.append(filenames[i] + " " + result.result_string())
+            if filenames[i] == 'checkpoint_best.pt' or filenames[i] == 'checkpoint_last.pt':
+                last_best.append(filenames[i] + " " + result.result_string())
+            else:
+                bleu[re.findall(r'\d+',filenames[i])[0]] = format(result.score(), '.2f')
+            
+    path = "./experimental_result/result/test.json"
     for i in range(len(bleu)):
-        print(bleu[i])
-
+        print(last_best[i])
+    
+    if bleu:
+        # Serializing json 
+        json_object = json.dumps(bleu, indent = 4)
+        
+        # Writing to sample.json
+        with open(path, "w") as outfile:
+            outfile.write(json_object)
+        
 if __name__ == "__main__":
     cli_main()
