@@ -267,7 +267,7 @@ class CrossEntropyCriterion(FairseqCriterion):
             
         if user_parameter is not None:
             loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
-            loss = loss * (0.5*user_parameter["valid_discs"] + 0.5*user_parameter["valid_bleu"])
+            loss = loss * (0.1*user_parameter["valid_discs"] + 0.9*user_parameter["valid_bleu"])
         else:
             loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
 
