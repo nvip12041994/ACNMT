@@ -658,7 +658,7 @@ def validate_and_save(
         )
     ) and not cfg.dataset.disable_validation
     # #test
-    do_validate = True
+    # do_validate = True
     # Validate
     valid_losses = [None]
     if do_validate:
