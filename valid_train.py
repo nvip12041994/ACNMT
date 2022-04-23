@@ -784,7 +784,7 @@ def cli_main(
                         '--optimizer', 'adam', '--adam-betas', '(0.9, 0.98)',
                         '--reset-optimizer',
                         '--lr', '0.0005', '--clip-norm', '0.0',
-                        '--dropout', '0.3',
+                        #'--dropout', '0.3',
                         #'--label-smoothing', '0.1',
                         #'--seed', '2048',
                         #'--max-tokens', '200',

@@ -216,7 +216,6 @@ class CrossEntropyCriterion(FairseqCriterion):
         """
         net_output = model(**sample["net_input"])
         
-        #loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
         # bsz, src_len = sample['net_input']['src_tokens'].size()[:2]
         # if user_parameter is not None:
         #     observations, target_tokens, actions, bleus = get_token_translate_from_sample(model,
@@ -266,8 +265,17 @@ class CrossEntropyCriterion(FairseqCriterion):
         #     loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
             
         if user_parameter is not None:
-            loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
-            loss = loss * (0.1*user_parameter["valid_discs"] + 0.9*user_parameter["valid_bleu"])
+            lprobs, target = self.compute_lprob(model, net_output, sample)
+            probs = torch.exp(lprobs) * (0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"])
+            lprobs = torch.log(probs)
+            lprobs = lprobs.view(-1, lprobs.size(-1))
+            loss = F.nll_loss(
+                lprobs,
+                target,
+                ignore_index=self.padding_idx,
+                reduction="sum" if reduce else "none",
+                #reduction="none",
+            )
         else:
             loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
 
