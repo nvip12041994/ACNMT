@@ -99,6 +99,7 @@ def get_token_translate_from_sample(network, user_parameter, sample, scorer, src
 
     tmp = []
     bleus = []
+    tmp_scores = []
     for i, sample_id in enumerate(sample["id"].tolist()):
         # print("==================")
         has_target = sample["target"] is not None
@@ -141,6 +142,8 @@ def get_token_translate_from_sample(network, user_parameter, sample, scorer, src
                     translator),
             )
             tmp.append(hypo["tokens"])
+            prob = torch.exp(hypo['score']).item()
+            tmp_scores.append(prob)
             scorer.add(target_token, hypo_token)
             bleu_score = scorer.score()/100
             bleus.append(bleu_score)
@@ -151,9 +154,10 @@ def get_token_translate_from_sample(network, user_parameter, sample, scorer, src
     for i in range(len(tmp)):
         hypo_tokens_out[i] = tensor_padding_to_fixed_length(
             tmp[i], max_len, tgt_dict.pad())
-
+    scores = torch.tensor(tmp_scores, device='cuda')
+    del hypo
     torch.cuda.empty_cache()
-    return src_tokens, target_tokens, hypo_tokens_out, bleus
+    return src_tokens, target_tokens, hypo_tokens_out, bleus, scores
 
 
 @dataclass
@@ -171,7 +175,7 @@ class CrossEntropyCriterion(FairseqCriterion):
         self.src_dict = task.source_dictionary
         self.vocab_size = len(task.target_dictionary)
         self.scorer = scoring.build_scorer("bleu", self.tgt_dict)
-        self.entropy_coeff = 0.01
+        self.entropy_coeff = 1
         self.gamma = 0.99
 
     def _returns_advantages(self, rewards, dones, values, next_value):
@@ -196,7 +200,7 @@ class CrossEntropyCriterion(FairseqCriterion):
             The advantages
         """
 
-        returns = np.append(np.zeros_like(rewards), [next_value.cpu()], axis=0)
+        returns = np.append(np.zeros_like(rewards), [next_value], axis=0)
         for t in reversed(range(len(rewards))):
             returns[t] = rewards[t] + self.gamma * returns[t + 1] * (1 - dones[t])
 
@@ -216,68 +220,69 @@ class CrossEntropyCriterion(FairseqCriterion):
         """
         net_output = model(**sample["net_input"])
         
-        # bsz, src_len = sample['net_input']['src_tokens'].size()[:2]
-        # if user_parameter is not None:
-        #     observations, target_tokens, actions, bleus = get_token_translate_from_sample(model,
-        #                                                                                     user_parameter,
-        #                                                                                     sample,
-        #                                                                                     self.scorer,
-        #                                                                                     self.src_dict,
-        #                                                                                     self.tgt_dict)
-        #     with torch.no_grad():
-        #         values = user_parameter["discriminator"](observations, actions)
-        #     dones = np.empty((bsz,), dtype=np.bool_)
-            
-        #     for i,bleu in enumerate(bleus):
-        #         if bleu >=0.5:
-        #             dones[i] = True
-        #         else:
-        #             dones[i] = False
-                        
-        #     # Update episode_count
-        #     # If our epiosde didn't end on the last step we need to compute the value for the last state
-        #     if dones[-1]:
-        #         next_value = 0
-        #     else:
-        #         next_value = values[-1]
-                
-        #     #episode_count = sum(dones)
-            
-        #     # Compute returns and advantages
-        #     returns, advantages = self._returns_advantages(bleus, dones, values, next_value)
-        #     user_parameter["returns"] = returns
-        #     # Learning step !
-        #     lprobs, target = self.compute_lprob(model, net_output, sample)                
-        #     loss_entropy = (torch.exp(lprobs)* lprobs).sum(-1).mean()
-            
-        #     lprobs = lprobs.view(-1, lprobs.size(-1))
-        #     loss_action = F.nll_loss(
-        #         lprobs,
-        #         target,
-        #         ignore_index=self.padding_idx,
-        #         #reduction="mean" if reduce else "none",
-        #         reduction="none",
-        #     )
-        #     loss = loss_action.view(-1,bsz) * advantages.to(lprobs.device) 
-        #     loss = torch.mean(loss) + self.entropy_coeff * loss_entropy
-        #     loss = loss * (0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"])
-        # else:
-        #     loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
-            
+        bsz, src_len = sample['net_input']['src_tokens'].size()[:2]
         if user_parameter is not None:
+            observations, target_tokens, actions, bleus, scores = get_token_translate_from_sample(model,
+                                                                                            user_parameter,
+                                                                                            sample,
+                                                                                            self.scorer,
+                                                                                            self.src_dict,
+                                                                                            self.tgt_dict)
+            with torch.no_grad():
+                values = user_parameter["discriminator"](observations, actions)
+            dones = np.empty((bsz,), dtype=np.bool_)
+            
+            for i,bleu in enumerate(bleus):
+                if bleu >= user_parameter['valid_bleu']:
+                    dones[i] = True
+                else:
+                    dones[i] = False
+                        
+            # Update episode_count
+            # If our epiosde didn't end on the last step we need to compute the value for the last state
+            if dones[-1]:
+                next_value = 0
+            else:
+                next_value = values[-1].detach().cpu().numpy().item()
+                
+            #episode_count = sum(dones)
+            
+            # Compute returns and advantages
+            returns, advantages = self._returns_advantages(bleus, dones, values, next_value)
+            user_parameter["returns"] = returns
+            # Learning step !
             lprobs, target = self.compute_lprob(model, net_output, sample)
-            probs = torch.exp(lprobs) * (0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"])
-            lprobs = torch.log(probs)
+            probs = torch.exp(lprobs)
+            loss_entropy = (probs* lprobs).sum(-1).mean().detach()
+            actor_loss = -torch.sum(scores * advantages.to(scores.device))
+            
             lprobs = lprobs.view(-1, lprobs.size(-1))
-            loss = F.nll_loss(
+            loss_action = F.nll_loss(
                 lprobs,
                 target,
                 ignore_index=self.padding_idx,
                 reduction="sum" if reduce else "none",
                 #reduction="none",
             )
+            # loss = loss_action.view(-1,bsz) * advantages.to(lprobs.device)
+            loss = loss_action*actor_loss + self.entropy_coeff * loss_entropy
         else:
             loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
+            
+        # if user_parameter is not None:
+        #     lprobs, target = self.compute_lprob(model, net_output, sample)
+        #     probs = torch.exp(lprobs) * (0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"])
+        #     lprobs = torch.log(probs)
+        #     lprobs = lprobs.view(-1, lprobs.size(-1))
+        #     loss = F.nll_loss(
+        #         lprobs,
+        #         target,
+        #         ignore_index=self.padding_idx,
+        #         reduction="sum" if reduce else "none",
+        #         #reduction="none",
+        #     )
+        # else:
+        #     loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
 
         sample_size = (
             sample["target"].size(

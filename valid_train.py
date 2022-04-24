@@ -202,24 +202,26 @@ def main(cfg: FairseqConfig) -> None:
     # print("Discriminator criterion loaded successfully!")
     # pg_criterion = PGLoss(ignore_index=task.tgt_dict.pad(), size_average=False,reduce=True)
     # Initialize generator
-    translator = SequenceGenerator(
-        [model],
-        task.tgt_dict,
-        search_strategy = search.Sampling(tgt_dict = task.tgt_dict,sampling_topk=-1, sampling_topp=0.95),
-        
-        beam_size=1,
-        max_len_a=1.2,
-        max_len_b=10,
-    )
-    
     # translator = SequenceGenerator(
     #     [model],
     #     task.tgt_dict,
     #     search_strategy = search.Sampling(tgt_dict = task.tgt_dict,sampling_topk=-1, sampling_topp=0.95),
         
     #     beam_size=1,
-    #     match_source_len=True,
+    #     max_len_a=1.2,
+    #     max_len_b=10,
     # )
+    
+    translator = SequenceGenerator(
+        [model],
+        task.tgt_dict,
+        search_strategy = search.BeamSearch(tgt_dict = task.tgt_dict),
+        
+        beam_size=1,
+        #match_source_len=True,
+        max_len_a=1.2,
+        max_len_b=10,
+    )
 
     # if use_cuda:
     #     translator.cuda()
@@ -521,39 +523,39 @@ def train(
             # part I: train the generator
             log_output = trainer.train_step(samples, user_parameter)
             # part II: train the discriminator
-            # if user_parameter is not None:
-            #     for i, sample in enumerate(samples):
-            #         if "target" in sample:
-            #             sample["target"] =  sample["target"].to(device)
-            #             sample['net_input']['src_tokens'] = sample['net_input']['src_tokens'].to(device)
-            #         else:
-            #             sample = sample.to(device)
+            if user_parameter is not None:
+                for i, sample in enumerate(samples):
+                    if "target" in sample:
+                        sample["target"] =  sample["target"].to(device)
+                        sample['net_input']['src_tokens'] = sample['net_input']['src_tokens'].to(device)
+                    else:
+                        sample = sample.to(device)
                     
-            #         # select an action from the agent's policy
-            #         src_tokens, target_tokens, hypo_tokens = get_token_translate_from_sample(model,user_parameter,
-            #                                                     sample, scorer,task.source_dictionary,task.target_dictionary)
-            #         returns = user_parameter["returns"]
-            #         returns = returns/returns.size
-            #         returns = torch.tensor(returns).float()
+                    # select an action from the agent's policy
+                    src_tokens, target_tokens, hypo_tokens = get_token_translate_from_sample(model,user_parameter,
+                                                                sample, scorer,task.source_dictionary,task.target_dictionary)
+                    returns = user_parameter["returns"]
+                    returns = returns/returns.size
+                    returns = torch.tensor(returns).float()
                     
-            #         mini_batch = 16
-            #         returns = torch.split(returns, mini_batch)
-            #         src_tokens = torch.split(src_tokens, mini_batch)
-            #         target_tokens = torch.split(target_tokens, mini_batch)
-            #         hypo_tokens = torch.split(hypo_tokens,mini_batch)
+                    mini_batch = 16
+                    returns = torch.split(returns, mini_batch)
+                    src_tokens = torch.split(src_tokens, mini_batch)
+                    target_tokens = torch.split(target_tokens, mini_batch)
+                    hypo_tokens = torch.split(hypo_tokens,mini_batch)
 
-            #         for i in range(len(src_tokens)):
-            #             discriminator_acc = train_discriminator(user_parameter,
-            #                             hypo_input = hypo_tokens[i],
-            #                             target_input = target_tokens[i],
-            #                             src_input = src_tokens[i],
-            #                             returns = returns[i],
-            #                         )
-            #             user_parameter["dis_accuracy"].append(discriminator_acc.cpu().detach().numpy().item())
-            #         del target_tokens
-            #         del src_tokens
-            #         del hypo_tokens
-            #         torch.cuda.empty_cache()
+                    for i in range(len(src_tokens)):
+                        discriminator_acc = train_discriminator(user_parameter,
+                                        hypo_input = hypo_tokens[i],
+                                        target_input = target_tokens[i],
+                                        src_input = src_tokens[i],
+                                        returns = returns[i],
+                                    )
+                        user_parameter["dis_accuracy"].append(discriminator_acc.cpu().detach().numpy().item())
+                    del target_tokens
+                    del src_tokens
+                    del hypo_tokens
+                    torch.cuda.empty_cache()
                     
             #print("After batch {0} GPU memory used {1:.3f}".format(i,get_gpu_memory_map()))
             
@@ -563,9 +565,9 @@ def train(
             #if num_updates % 2 == 0:
                 stats = get_training_stats(metrics.get_smoothed_values("train_inner"))
                 progress.log(stats, tag="train_inner", step=num_updates)                
-                #acc = sum(user_parameter["dis_accuracy"])/len(user_parameter["dis_accuracy"])
-                #user_parameter["dis_accuracy"] = []
-                #print(">------- discriminator accuracy = {:.2f} -------<".format(acc*100))
+                acc = sum(user_parameter["dis_accuracy"])/len(user_parameter["dis_accuracy"])
+                user_parameter["dis_accuracy"] = []
+                print("------- discriminator accuracy = {:.2f} -------".format(acc*100))
                 # reset mid-epoch stats after each log interval
                 # the end-of-epoch stats will still be preserved
                 metrics.reset_meters("train_inner")
@@ -741,13 +743,13 @@ def validate(
             for sample in progress:
                 trainer.valid_step(sample, user_parameter)
 
-        values = []
-        with torch.no_grad():
-            for i in tqdm(range(len(user_parameter["valid_srcs"])), desc ="Get disc out average: "):
-                observations = user_parameter["valid_srcs"][i].unsqueeze(0)
-                actions = user_parameter["valid_hyps"][i].unsqueeze(0)
-                value = user_parameter["discriminator"](observations, actions)
-                values.append(value.cpu().detach().numpy()[0][0])
+        values = [1,2,3]
+        # with torch.no_grad():
+        #     for i in tqdm(range(len(user_parameter["valid_srcs"])), desc ="Get disc out average: "):
+        #         observations = user_parameter["valid_srcs"][i].unsqueeze(0)
+        #         actions = user_parameter["valid_hyps"][i].unsqueeze(0)
+        #         value = user_parameter["discriminator"](observations, actions)
+        #         values.append(value.cpu().detach().numpy()[0][0])
         
         # log validation stats
         stats = get_valid_stats(cfg, trainer, agg.get_smoothed_values())
@@ -790,7 +792,7 @@ def cli_main(
                         #'--max-tokens', '200',
                         '--fp16',
                         '--batch-size', '192', #16
-                        #'--max-epoch', '33',
+                        '--max-epoch', '200',
                         '--lr-scheduler', 'inverse_sqrt',
                         '--weight-decay', '0.0',
                         '--user-dir', './user_dir',   

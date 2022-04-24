@@ -129,8 +129,8 @@ def draw_data(filename, x_tick):
 
     plt.show()
 
-#scp experimental_result/result/test.json nvip@150.65.178.237:/home/nvip/Data/ACNMT/experimental_result/result/
+#scp experimental_result/result/test.json nvip@150.65.178.60:/home/nvip/Data/ACNMT/experimental_result/result/
 if __name__ == "__main__":
     #draw_data("/result/transformer_base.json",50)
     #draw_data("/result/actor_critic_test1.json", 1)
-    draw_data("/result/test.json", 50)
+    draw_data("/result/3-7prob_test.json", 50)
