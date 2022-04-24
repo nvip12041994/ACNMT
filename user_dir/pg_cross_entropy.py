@@ -252,10 +252,10 @@ class CrossEntropyCriterion(FairseqCriterion):
             user_parameter["returns"] = returns
             # Learning step !
             lprobs, target = self.compute_lprob(model, net_output, sample)
-            probs = torch.exp(lprobs)
+            probs = torch.exp(lprobs).detach()
             loss_entropy = (probs* lprobs).sum(-1).mean().detach()
-            actor_loss = -torch.sum(scores * advantages.to(scores.device))
-            
+            actor_loss = scores * advantages.to(scores.device)
+            lprobs = (lprobs.T*actor_loss).T
             lprobs = lprobs.view(-1, lprobs.size(-1))
             loss_action = F.nll_loss(
                 lprobs,
@@ -265,7 +265,7 @@ class CrossEntropyCriterion(FairseqCriterion):
                 #reduction="none",
             )
             # loss = loss_action.view(-1,bsz) * advantages.to(lprobs.device)
-            loss = loss_action*actor_loss + self.entropy_coeff * loss_entropy
+            loss = loss_action + self.entropy_coeff * loss_entropy
         else:
             loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
             
