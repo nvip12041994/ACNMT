@@ -523,39 +523,39 @@ def train(
             # part I: train the generator
             log_output = trainer.train_step(samples, user_parameter)
             # part II: train the discriminator
-            if user_parameter is not None:
-                for i, sample in enumerate(samples):
-                    if "target" in sample:
-                        sample["target"] =  sample["target"].to(device)
-                        sample['net_input']['src_tokens'] = sample['net_input']['src_tokens'].to(device)
-                    else:
-                        sample = sample.to(device)
+            # if user_parameter is not None:
+            #     for i, sample in enumerate(samples):
+            #         if "target" in sample:
+            #             sample["target"] =  sample["target"].to(device)
+            #             sample['net_input']['src_tokens'] = sample['net_input']['src_tokens'].to(device)
+            #         else:
+            #             sample = sample.to(device)
                     
-                    # select an action from the agent's policy
-                    src_tokens, target_tokens, hypo_tokens = get_token_translate_from_sample(model,user_parameter,
-                                                                sample, scorer,task.source_dictionary,task.target_dictionary)
-                    #returns = user_parameter["returns"]
-                    # returns = returns/returns.size
-                    # returns = torch.tensor(returns).float()
+            #         # select an action from the agent's policy
+            #         src_tokens, target_tokens, hypo_tokens = get_token_translate_from_sample(model,user_parameter,
+            #                                                     sample, scorer,task.source_dictionary,task.target_dictionary)
+            #         #returns = user_parameter["returns"]
+            #         # returns = returns/returns.size
+            #         # returns = torch.tensor(returns).float()
                     
-                    mini_batch = 16
-                    # returns = torch.split(returns, mini_batch)
-                    src_tokens = torch.split(src_tokens, mini_batch)
-                    target_tokens = torch.split(target_tokens, mini_batch)
-                    hypo_tokens = torch.split(hypo_tokens,mini_batch)
+            #         mini_batch = 16
+            #         # returns = torch.split(returns, mini_batch)
+            #         src_tokens = torch.split(src_tokens, mini_batch)
+            #         target_tokens = torch.split(target_tokens, mini_batch)
+            #         hypo_tokens = torch.split(hypo_tokens,mini_batch)
 
-                    for i in range(len(src_tokens)):
-                        discriminator_acc = train_discriminator(user_parameter,
-                                        hypo_input = hypo_tokens[i],
-                                        target_input = target_tokens[i],
-                                        src_input = src_tokens[i],
-                                        #returns = returns[i],
-                                    )
-                        user_parameter["dis_accuracy"].append(discriminator_acc.cpu().detach().numpy().item())
-                    del target_tokens
-                    del src_tokens
-                    del hypo_tokens
-                    torch.cuda.empty_cache()
+            #         for i in range(len(src_tokens)):
+            #             discriminator_acc = train_discriminator(user_parameter,
+            #                             hypo_input = hypo_tokens[i],
+            #                             target_input = target_tokens[i],
+            #                             src_input = src_tokens[i],
+            #                             #returns = returns[i],
+            #                         )
+            #             user_parameter["dis_accuracy"].append(discriminator_acc.cpu().detach().numpy().item())
+            #         del target_tokens
+            #         del src_tokens
+            #         del hypo_tokens
+            #         torch.cuda.empty_cache()
                     
             #print("After batch {0} GPU memory used {1:.3f}".format(i,get_gpu_memory_map()))
             
@@ -743,13 +743,13 @@ def validate(
             for sample in progress:
                 trainer.valid_step(sample, user_parameter)
 
-        values = [1,2,3]
-        # with torch.no_grad():
-        #     for i in tqdm(range(len(user_parameter["valid_srcs"])), desc ="Get disc out average: "):
-        #         observations = user_parameter["valid_srcs"][i].unsqueeze(0)
-        #         actions = user_parameter["valid_hyps"][i].unsqueeze(0)
-        #         value = user_parameter["discriminator"](observations, actions)
-        #         values.append(value.cpu().detach().numpy()[0][0])
+        values = []
+        with torch.no_grad():
+            for i in tqdm(range(len(user_parameter["valid_srcs"])), desc ="Get disc out average: "):
+                observations = user_parameter["valid_srcs"][i].unsqueeze(0)
+                actions = user_parameter["valid_hyps"][i].unsqueeze(0)
+                value = user_parameter["discriminator"](observations, actions)
+                values.append(value.cpu().detach().numpy()[0][0])
         
         # log validation stats
         stats = get_valid_stats(cfg, trainer, agg.get_smoothed_values())

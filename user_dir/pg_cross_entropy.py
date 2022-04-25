@@ -222,14 +222,14 @@ class CrossEntropyCriterion(FairseqCriterion):
         
         #bsz, src_len = sample['net_input']['src_tokens'].size()[:2]
         if user_parameter is not None:
-            observations, target_tokens, actions, bleus, scores = get_token_translate_from_sample(model,
-                                                                                            user_parameter,
-                                                                                            sample,
-                                                                                            self.scorer,
-                                                                                            self.src_dict,
-                                                                                            self.tgt_dict)
-            with torch.no_grad():
-                values = user_parameter["discriminator"](observations, actions)
+            # observations, target_tokens, actions, bleus, scores = get_token_translate_from_sample(model,
+            #                                                                                 user_parameter,
+            #                                                                                 sample,
+            #                                                                                 self.scorer,
+            #                                                                                 self.src_dict,
+            #                                                                                 self.tgt_dict)
+            # with torch.no_grad():
+            #     values = user_parameter["discriminator"](observations, actions)
             # dones = np.empty((bsz,), dtype=np.bool_)
             
             # for i,bleu in enumerate(bleus):
@@ -256,7 +256,7 @@ class CrossEntropyCriterion(FairseqCriterion):
             # loss_entropy = (probs* lprobs).sum(-1).mean().detach()
             # actor_loss = scores * advantages.to(scores.device)
             bleus = torch.tensor(bleus).to(lprobs.device)
-            reward = 2 - (0.3*values.T.squeeze()+0.7*bleus)
+            reward = 2 - ((0.3*user_parameter["valid_discs"] + 0.7*user_parameter["valid_bleu"]))
             rewards = reward.repeat(lprobs.shape[1],1)
             lprobs = (lprobs.T*rewards).T
             lprobs = lprobs.view(-1, lprobs.size(-1))
