@@ -220,7 +220,7 @@ class CrossEntropyCriterion(FairseqCriterion):
         """
         net_output = model(**sample["net_input"])
         
-        bsz, src_len = sample['net_input']['src_tokens'].size()[:2]
+        #bsz, src_len = sample['net_input']['src_tokens'].size()[:2]
         if user_parameter is not None:
             observations, target_tokens, actions, bleus, scores = get_token_translate_from_sample(model,
                                                                                             user_parameter,
@@ -230,32 +230,35 @@ class CrossEntropyCriterion(FairseqCriterion):
                                                                                             self.tgt_dict)
             with torch.no_grad():
                 values = user_parameter["discriminator"](observations, actions)
-            dones = np.empty((bsz,), dtype=np.bool_)
+            # dones = np.empty((bsz,), dtype=np.bool_)
             
-            for i,bleu in enumerate(bleus):
-                if bleu >= user_parameter['valid_bleu']:
-                    dones[i] = True
-                else:
-                    dones[i] = False
+            # for i,bleu in enumerate(bleus):
+            #     if bleu >= user_parameter['valid_bleu']:
+            #         dones[i] = True
+            #     else:
+            #         dones[i] = False
                         
             # Update episode_count
             # If our epiosde didn't end on the last step we need to compute the value for the last state
-            if dones[-1]:
-                next_value = 0
-            else:
-                next_value = values[-1].detach().cpu().numpy().item()
+            # if dones[-1]:
+            #     next_value = 0
+            # else:
+            #     next_value = values[-1].detach().cpu().numpy().item()
                 
             #episode_count = sum(dones)
             
             # Compute returns and advantages
-            returns, advantages = self._returns_advantages(bleus, dones, values, next_value)
-            user_parameter["returns"] = returns
+            # returns, advantages = self._returns_advantages(bleus, dones, values, next_value)
+            # user_parameter["returns"] = returns
             # Learning step !
             lprobs, target = self.compute_lprob(model, net_output, sample)
-            probs = torch.exp(lprobs).detach()
-            loss_entropy = (probs* lprobs).sum(-1).mean().detach()
-            actor_loss = scores * advantages.to(scores.device)
-            lprobs = (lprobs.T*actor_loss).T
+            #probs = torch.exp(lprobs).detach()
+            # loss_entropy = (probs* lprobs).sum(-1).mean().detach()
+            # actor_loss = scores * advantages.to(scores.device)
+            bleus = torch.tensor(bleus).to(lprobs.device)
+            reward = 0.3*values.T.squeeze()+0.7*bleus
+            rewards = reward.repeat(lprobs.shape[1],1)
+            lprobs = (lprobs.T*rewards).T
             lprobs = lprobs.view(-1, lprobs.size(-1))
             loss_action = F.nll_loss(
                 lprobs,
@@ -265,7 +268,7 @@ class CrossEntropyCriterion(FairseqCriterion):
                 #reduction="none",
             )
             # loss = loss_action.view(-1,bsz) * advantages.to(lprobs.device)
-            loss = loss_action + self.entropy_coeff * loss_entropy
+            loss = loss_action
         else:
             loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
             

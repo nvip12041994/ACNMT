@@ -434,15 +434,15 @@ def train(
     scorer = scoring.build_scorer("bleu", task.target_dictionary)
     device = torch.device(torch.cuda.current_device() if torch.cuda.is_available() else "cpu")
     
-    def train_discriminator(user_parameter,hypo_input,src_input,target_input, returns):
+    def train_discriminator(user_parameter,hypo_input,src_input,target_input): #, returns):
         user_parameter["discriminator"].train()
         user_parameter["d_criterion"].train()
         
-        if returns.shape[0] == 0:
-            fake_labels = Variable(torch.zeros(src_input.size(0)).float())
-        else:
-            fake_labels = Variable(returns)
-        #fake_labels = Variable(torch.zeros(src_input.size(0)).float())
+        # if returns.shape[0] == 0:
+        #     fake_labels = Variable(torch.zeros(src_input.size(0)).float())
+        # else:
+        #     fake_labels = Variable(returns)
+        fake_labels = Variable(torch.zeros(src_input.size(0)).float())
         fake_labels = fake_labels.to(src_input.device)
         
         true_labels = Variable(torch.ones(target_input.size(0)).float())
@@ -534,12 +534,12 @@ def train(
                     # select an action from the agent's policy
                     src_tokens, target_tokens, hypo_tokens = get_token_translate_from_sample(model,user_parameter,
                                                                 sample, scorer,task.source_dictionary,task.target_dictionary)
-                    returns = user_parameter["returns"]
-                    returns = returns/returns.size
-                    returns = torch.tensor(returns).float()
+                    #returns = user_parameter["returns"]
+                    # returns = returns/returns.size
+                    # returns = torch.tensor(returns).float()
                     
                     mini_batch = 16
-                    returns = torch.split(returns, mini_batch)
+                    # returns = torch.split(returns, mini_batch)
                     src_tokens = torch.split(src_tokens, mini_batch)
                     target_tokens = torch.split(target_tokens, mini_batch)
                     hypo_tokens = torch.split(hypo_tokens,mini_batch)
@@ -549,7 +549,7 @@ def train(
                                         hypo_input = hypo_tokens[i],
                                         target_input = target_tokens[i],
                                         src_input = src_tokens[i],
-                                        returns = returns[i],
+                                        #returns = returns[i],
                                     )
                         user_parameter["dis_accuracy"].append(discriminator_acc.cpu().detach().numpy().item())
                     del target_tokens
@@ -660,7 +660,7 @@ def validate_and_save(
         )
     ) and not cfg.dataset.disable_validation
     # #test
-    # do_validate = True
+    #do_validate = True
     # Validate
     valid_losses = [None]
     if do_validate:
