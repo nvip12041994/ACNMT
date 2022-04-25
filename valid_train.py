@@ -565,9 +565,9 @@ def train(
             #if num_updates % 2 == 0:
                 stats = get_training_stats(metrics.get_smoothed_values("train_inner"))
                 progress.log(stats, tag="train_inner", step=num_updates)                
-                acc = sum(user_parameter["dis_accuracy"])/len(user_parameter["dis_accuracy"])
-                user_parameter["dis_accuracy"] = []
-                print("------- discriminator accuracy = {:.2f} -------".format(acc*100))
+                # acc = sum(user_parameter["dis_accuracy"])/len(user_parameter["dis_accuracy"])
+                # user_parameter["dis_accuracy"] = []
+                # print("------- discriminator accuracy = {:.2f} -------".format(acc*100))
                 # reset mid-epoch stats after each log interval
                 # the end-of-epoch stats will still be preserved
                 metrics.reset_meters("train_inner")
