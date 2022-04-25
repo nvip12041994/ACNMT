@@ -256,7 +256,7 @@ class CrossEntropyCriterion(FairseqCriterion):
             # loss_entropy = (probs* lprobs).sum(-1).mean().detach()
             # actor_loss = scores * advantages.to(scores.device)
             bleus = torch.tensor(bleus).to(lprobs.device)
-            reward = 0.3*values.T.squeeze()+0.7*bleus
+            reward = 2 - (0.3*values.T.squeeze()+0.7*bleus)
             rewards = reward.repeat(lprobs.shape[1],1)
             lprobs = (lprobs.T*rewards).T
             lprobs = lprobs.view(-1, lprobs.size(-1))
