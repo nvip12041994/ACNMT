@@ -258,12 +258,13 @@ class CrossEntropyCriterion(FairseqCriterion):
             #bleus = torch.tensor(bleus).to(lprobs.device)
             valid_discs = torch.tensor(user_parameter["valid_discs"]).to(lprobs.device)
             valid_bleu = torch.tensor(user_parameter["valid_bleu"]).to(lprobs.device)
-            reward = 2 - ((0.2*valid_discs + 0.8*3*valid_bleu))
-            rewards = reward.repeat(lprobs.shape[1],1)
-            lprobs = (lprobs.T*rewards).T
-            lprobs = lprobs.view(-1, lprobs.size(-1))
+            reward = torch.log(0.5*valid_discs + 0.5*valid_bleu)
+            #rewards = reward.repeat(lprobs.shape[1],1)
+            #lprobs_re = (lprobs.T*rewards).T
+            lprobs_re = lprobs + reward
+            lprobs_re = lprobs_re.view(-1, lprobs_re.size(-1))
             loss_action = F.nll_loss(
-                lprobs,
+                lprobs_re,
                 target,
                 ignore_index=self.padding_idx,
                 reduction="sum" if reduce else "none",
@@ -271,6 +272,8 @@ class CrossEntropyCriterion(FairseqCriterion):
             )
             # loss = loss_action.view(-1,bsz) * advantages.to(lprobs.device)
             loss = loss_action
+            # m = {'lprobs': lprobs, 'target': target, 'lprobs_re': lprobs_re}
+            # torch.save(m, "tensor_examine.pt")
         else:
             loss, _ = self.compute_loss(model, net_output, sample, reduce=reduce)
             

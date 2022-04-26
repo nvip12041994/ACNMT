@@ -133,4 +133,4 @@ def draw_data(filename, x_tick):
 if __name__ == "__main__":
     #draw_data("/result/transformer_base.json",50)
     #draw_data("/result/actor_critic_test1.json", 1)
-    draw_data("/result/test.json", 50)
+    draw_data("/result/test.json", 10)
