@@ -793,6 +793,8 @@ def cli_main(
                         '--fp16',
                         '--batch-size', '192', #16
                         '--max-epoch', '200',
+                        '--log-format', 'json',
+                        '--log-file', 'experimental_result/train_log/log.json'
                         '--lr-scheduler', 'inverse_sqrt',
                         '--weight-decay', '0.0',
                         '--user-dir', './user_dir',   

@@ -258,7 +258,7 @@ class CrossEntropyCriterion(FairseqCriterion):
             #bleus = torch.tensor(bleus).to(lprobs.device)
             valid_discs = torch.tensor(user_parameter["valid_discs"]).to(lprobs.device)
             valid_bleu = torch.tensor(user_parameter["valid_bleu"]).to(lprobs.device)
-            reward = 2 - ((0.3*valid_discs + 0.7*valid_bleu))
+            reward = 2 - ((0.2*valid_discs + 0.8*3*valid_bleu))
             rewards = reward.repeat(lprobs.shape[1],1)
             lprobs = (lprobs.T*rewards).T
             lprobs = lprobs.view(-1, lprobs.size(-1))
