@@ -220,32 +220,32 @@ class CrossEntropyCriterion(FairseqCriterion):
         """
         net_output = model(**sample["net_input"])
         
-        #bsz, src_len = sample['net_input']['src_tokens'].size()[:2]
+        bsz, src_len = sample['net_input']['src_tokens'].size()[:2]
         if user_parameter is not None:
-            # observations, target_tokens, actions, bleus, scores = get_token_translate_from_sample(model,
-            #                                                                                 user_parameter,
-            #                                                                                 sample,
-            #                                                                                 self.scorer,
-            #                                                                                 self.src_dict,
-            #                                                                                 self.tgt_dict)
-            # with torch.no_grad():
-            #     values = user_parameter["discriminator"](observations, actions)
-            # dones = np.empty((bsz,), dtype=np.bool_)
+            observations, target_tokens, actions, bleus, scores = get_token_translate_from_sample(model,
+                                                                                            user_parameter,
+                                                                                            sample,
+                                                                                            self.scorer,
+                                                                                            self.src_dict,
+                                                                                            self.tgt_dict)
+            with torch.no_grad():
+                values = user_parameter["discriminator"](observations, actions)
+            dones = np.empty((bsz,), dtype=np.bool_)
             
-            # for i,bleu in enumerate(bleus):
-            #     if bleu >= user_parameter['valid_bleu']:
-            #         dones[i] = True
-            #     else:
-            #         dones[i] = False
+            for i,bleu in enumerate(bleus):
+                if bleu >= 20:
+                    dones[i] = True
+                else:
+                    dones[i] = False
                         
             # Update episode_count
             # If our epiosde didn't end on the last step we need to compute the value for the last state
-            # if dones[-1]:
-            #     next_value = 0
-            # else:
-            #     next_value = values[-1].detach().cpu().numpy().item()
+            if dones[-1]:
+                next_value = 0
+            else:
+                next_value = values[-1].detach().cpu().numpy().item()
                 
-            #episode_count = sum(dones)
+            episode_count = sum(dones)
             
             # Compute returns and advantages
             # returns, advantages = self._returns_advantages(bleus, dones, values, next_value)
@@ -256,22 +256,22 @@ class CrossEntropyCriterion(FairseqCriterion):
             # loss_entropy = (probs* lprobs).sum(-1).mean().detach()
             # actor_loss = scores * advantages.to(scores.device)
             #bleus = torch.tensor(bleus).to(lprobs.device)
-            valid_discs = torch.tensor(user_parameter["valid_discs"]).to(lprobs.device)
-            valid_bleu = torch.tensor(user_parameter["valid_bleu"]).to(lprobs.device)
-            reward = torch.log(0.8*valid_discs + 0.2*valid_bleu)
+            #valid_discs = torch.tensor(user_parameter["valid_discs"]).to(lprobs.device)
+            #valid_bleu = torch.tensor(user_parameter["valid_bleu"]).to(lprobs.device)
+            #reward = torch.log(0.8*valid_discs + 0.2*valid_bleu)
             #rewards = reward.repeat(lprobs.shape[1],1)
             #lprobs_re = (lprobs.T*rewards).T
-            lprobs_re = lprobs + reward
-            lprobs_re = lprobs_re.view(-1, lprobs_re.size(-1))
-            loss_action = F.nll_loss(
-                lprobs_re,
+            #lprobs_re = lprobs + reward
+            #lprobs_re = lprobs_re.view(-1, lprobs_re.size(-1))
+            loss = F.nll_loss(
+                lprobs.view(-1, lprobs.size(-1)),
                 target,
                 ignore_index=self.padding_idx,
                 reduction="sum" if reduce else "none",
                 #reduction="none",
             )
             # loss = loss_action.view(-1,bsz) * advantages.to(lprobs.device)
-            loss = loss_action
+            # loss = loss_action
             # m = {'lprobs': lprobs, 'target': target, 'lprobs_re': lprobs_re}
             # torch.save(m, "tensor_examine.pt")
         else:
