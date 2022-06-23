@@ -369,7 +369,8 @@ def get_token_translate_from_sample(network,user_parameter,sample,scorer,src_dic
             )
             tmp.append(hypo["tokens"])
             scorer.add(target_token, hypo_token)
-            # bleu_score = scorer.score()
+            bleu_score = scorer.score()
+            bleus.append(bleu_score)
             # if  bleu_score >= 40:# Maximum BLEU = 100
             #     bleus.append(1.0)
             # else:
@@ -524,12 +525,19 @@ def train(
                     #a = time.time() - start_time
                     
                     #start_time = time.time()
-                    discriminator_acc = train_discriminator(user_parameter,
-                                        hypo_input = hypo_tokens,
-                                        target_input = target_tokens,
-                                        src_input = src_tokens,
-                                        bleu = bleus,
-                                    )
+                    size_mini = 16 
+                    mini_batch_src = torch.split(src_tokens,size_mini)
+                    mini_batch_trg = torch.split(target_tokens,size_mini)
+                    mini_batch_hyp = torch.split(hypo_tokens,size_mini)
+                    mini_batch_bleu = torch.split(torch.tensor(bleus),size_mini)
+                    for i in range(len(mini_batch_src)):
+                        discriminator_acc = train_discriminator(user_parameter,
+                                            hypo_input = mini_batch_src[i],
+                                            target_input = mini_batch_trg[i],
+                                            src_input = mini_batch_hyp[i],
+                                            bleu = mini_batch_bleu[i],
+                                        )
+
                     #b = time.time() - start_time
                     #print("discriminator accuracy{:.2f}".format(discriminator_acc*100))
                     del target_tokens
@@ -784,4 +792,6 @@ def cli_main(
 
 
 if __name__ == "__main__":
+    #import os
+    #os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     cli_main()
