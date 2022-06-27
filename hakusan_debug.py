@@ -392,10 +392,11 @@ def train(
 ) -> Tuple[List[Optional[float]], bool]:    
     """Train the model for one epoch and return validation losses."""
     
+    device = torch.device(torch.cuda.current_device() if torch.cuda.is_available() else "cpu")
     max_len_src = epoch_itr.dataset.src.sizes.max()
     max_len_target = epoch_itr.dataset.tgt.sizes.max()
     max_len_hypo = math.ceil(max_len_src*translator.max_len_a) + translator.max_len_b
-    # state_list, action_list, reward_list, next_state_list, done_list = [], [], [], [], []
+    lprob_actor = []
     returns = []
     user_parameter = {
         "max_len_src": max_len_src,
@@ -407,16 +408,13 @@ def train(
         "d_optimizer": d_optimizer,
         "tokenizer": trainer.task.tokenizer,
         "returns" : returns,
+
+        "lprob_actor" : lprob_actor,
         
-        # "state_list": state_list,
-        # "action_list": action_list,
-        # "reward_list": reward_list,
-        # "next_state_list": next_state_list,
-        # "done_list": done_list,
     }
     
     scorer = scoring.build_scorer("bleu", task.target_dictionary)
-    device = torch.device(torch.cuda.current_device() if torch.cuda.is_available() else "cpu")
+    
     
     def train_discriminator(user_parameter,hypo_input,src_input,target_input,bleu):
         user_parameter["discriminator"].train()
@@ -792,6 +790,6 @@ def cli_main(
 
 
 if __name__ == "__main__":
-    #import os
-    #os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    # import os
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     cli_main()

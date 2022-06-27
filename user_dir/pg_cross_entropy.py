@@ -5,6 +5,7 @@
 
 import math
 from dataclasses import dataclass
+from re import L
 
 import torch.nn.functional as F
 from fairseq import metrics, utils
@@ -251,8 +252,34 @@ class CrossEntropyCriterion(FairseqCriterion):
             # returns, advantages = self._returns_advantages(bleus, dones, values, next_value)
             # user_parameter["returns"] = returns
             # Learning step !
+            
             lprobs, target = self.compute_lprob(model, net_output, sample)
-            #probs = torch.exp(lprobs).detach()
+            tmp_loss = F.nll_loss(
+                lprobs.view(-1, lprobs.size(-1)),
+                target,
+                ignore_index=self.padding_idx,
+                reduction="sum" if reduce else "none",
+                #reduction="none",
+            )
+            user_parameter["lprob_actor"].append(lprobs.detach())
+            if len(user_parameter["lprob_actor"]) == 2:
+                logratio = torch.mean(user_parameter["lprob_actor"][1],1) - torch.mean(user_parameter["lprob_actor"][0],1)
+                ratio = torch.exp(logratio)
+                clipfracs = []
+                with torch.no_grad():
+                    # calculate approx_kl http://joschu.net/blog/kl-approx.html
+                    old_approx_kl = (-logratio).mean()
+                    approx_kl = ((ratio - 1) - logratio).mean()
+                    clipfracs += [((ratio - 1.0).abs() > 0.2).float().mean().item()]
+                user_parameter["lprob_actor"].pop(0)
+                # Policy loss
+                # pg_loss1 = -tmp_loss * ratio
+                # pg_loss2 = -tmp_loss * torch.clamp(ratio, 1 - 0.2, 1 + 0.2)
+                # loss = torch.max(pg_loss1, pg_loss2)
+                loss = tmp_loss
+            else:
+                loss = tmp_loss
+            #prob_entropy = prob.entropy()
             # loss_entropy = (probs* lprobs).sum(-1).mean().detach()
             # actor_loss = scores * advantages.to(scores.device)
             #bleus = torch.tensor(bleus).to(lprobs.device)
@@ -263,13 +290,13 @@ class CrossEntropyCriterion(FairseqCriterion):
             #lprobs_re = (lprobs.T*rewards).T
             #lprobs_re = lprobs + reward
             #lprobs_re = lprobs_re.view(-1, lprobs_re.size(-1))
-            loss = F.nll_loss(
-                lprobs.view(-1, lprobs.size(-1)),
-                target,
-                ignore_index=self.padding_idx,
-                reduction="sum" if reduce else "none",
-                #reduction="none",
-            )
+            # loss = F.nll_loss(
+            #     lprobs.view(-1, lprobs.size(-1)),
+            #     target,
+            #     ignore_index=self.padding_idx,
+            #     reduction="sum" if reduce else "none",
+            #     #reduction="none",
+            # )
             # loss = loss_action.view(-1,bsz) * advantages.to(lprobs.device)
             # loss = loss_action
             # m = {'lprobs': lprobs, 'target': target, 'lprobs_re': lprobs_re}
