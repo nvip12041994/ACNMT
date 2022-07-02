@@ -23,6 +23,8 @@ from omegaconf import DictConfig
 import re
 import json
 
+from os import walk
+
 
 def main(cfg: DictConfig):
     if isinstance(cfg, Namespace):
@@ -394,10 +396,6 @@ def _main(cfg: DictConfig, output_file):
         )
 
     return scorer
-
-
-from os import walk
-
 
 def cli_main():
     # cur_model = ['./data-bin/iwslt15.tokenized.en-vi','--beam','10', '--max-sentences', '200', '--path', 'checkpoints/transformer/checkpoint_best.pt','--bpe', 'subword_nmt', '--bpe-codes', 'bpe_code', '--sacrebleu']
