@@ -30,7 +30,7 @@ from fairseq.distributed import fsdp_enable_wrap, fsdp_wrap, utils as distribute
 from fairseq.file_io import PathManager
 from fairseq.logging import meters, metrics, progress_bar
 from fairseq.model_parallel.megatron_trainer import MegatronTrainer
-from fairseq.trainer import Trainer
+from modify_trainer import Trainer
 from omegaconf import DictConfig, OmegaConf
 
 
@@ -264,7 +264,7 @@ def train(
         with metrics.aggregate("train_inner"), torch.autograd.profiler.record_function(
             "train_step-%d" % i
         ):
-            log_output = trainer.train_step(samples)
+            log_output = trainer.train_step(samples, user_parameter = None)
 
         if log_output is not None:  # not OOM, overflow, ...
             # log mid-epoch stats
@@ -279,7 +279,7 @@ def train(
 
         end_of_epoch = not itr.has_next()
         valid_losses, should_stop = validate_and_save(
-            cfg, trainer, task, epoch_itr, valid_subsets, end_of_epoch
+            cfg, trainer, task, epoch_itr, valid_subsets, end_of_epoch, user_parameter = None
         )
 
         if should_stop:
@@ -315,6 +315,7 @@ def validate_and_save(
     epoch_itr,
     valid_subsets: List[str],
     end_of_epoch: bool,
+    user_parameter = None,
 ) -> Tuple[List[Optional[float]], bool]:
     num_updates = trainer.get_num_updates()
     max_update = cfg.optimization.max_update or math.inf
@@ -364,6 +365,8 @@ def validate_and_save(
 
     # Validate
     valid_losses = [None]
+    # set do_validate = True for debug validate instead of waitting trainning end
+    #do_validate = True
     if do_validate:
         valid_losses = validate(cfg, trainer, task, epoch_itr, valid_subsets)
 
@@ -433,7 +436,7 @@ def validate(
         # don't pollute other aggregators (e.g., train meters)
         with metrics.aggregate(new_root=True) as agg:
             for sample in progress:
-                trainer.valid_step(sample)
+                trainer.valid_step(sample,user_parameter = None)
 
         # log validation stats
         stats = get_valid_stats(cfg, trainer, agg.get_smoothed_values())
@@ -470,13 +473,13 @@ def cli_main(
                         '--weight-decay', '0.0001',
                         '--dropout', '0.3',                        
                         #'--seed', '2048',
-                        '--max-tokens', '4096',                                                
+                        '--max-tokens', '8192',                                                
                         '--lr-scheduler', 'inverse_sqrt',
                         '--label-smoothing', '0.1',
                         '--user-dir', './user_dir',                  
                         '--criterion', 'mod_label_smoothed_cross_entropy',
                         '--warmup-updates', '4000', '--warmup-init-lr' ,'1e-07',
-                        #'--no-progress-bar',
+                        '--no-progress-bar',
                         #'--bpe','subword_nmt',
                         '--eval-bleu',
                         '--eval-bleu-args', '{"beam": 5, "max_len_a": 1.2, "max_len_b": 10}',
