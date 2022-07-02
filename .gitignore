@@ -137,5 +137,8 @@ dmypy.json
 **/fairseq/data/data_utils_fast.cpp
 **/fairseq/data/token_block_utils_fast.cpp
 **/fairseq/version.py
+.idea
+**/fairseq/data/data_utils_fast.cpp
+**/fairseq/data/token_block_utils_fast.cpp
 #**/fairseq/modules/lightconv_layer
 #**/fairseq/modules/dynamicconv_layer
