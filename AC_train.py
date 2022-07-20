@@ -369,7 +369,8 @@ def get_token_translate_from_sample(network,user_parameter,sample,scorer,src_dic
             )
             tmp.append(hypo["tokens"])
             scorer.add(target_token, hypo_token)
-            # bleu_score = scorer.score()
+            bleu_score = scorer.score()
+            bleus.append(bleu_score/100)
             # if  bleu_score >= 40:# Maximum BLEU = 100
             #     bleus.append(1.0)
             # else:
@@ -524,12 +525,18 @@ def train(
                     #a = time.time() - start_time
                     
                     #start_time = time.time()
-                    discriminator_acc = train_discriminator(user_parameter,
-                                        hypo_input = hypo_tokens,
-                                        target_input = target_tokens,
-                                        src_input = src_tokens,
-                                        bleu = bleus,
-                                    )
+                    size_mini = 16 
+                    mini_batch_src = torch.split(src_tokens,size_mini)
+                    mini_batch_trg = torch.split(target_tokens,size_mini)
+                    mini_batch_hyp = torch.split(hypo_tokens,size_mini)
+                    mini_batch_bleu = torch.split(torch.tensor(bleus),size_mini)
+                    for i in range(len(mini_batch_src)):
+                        discriminator_acc = train_discriminator(user_parameter,
+                                            hypo_input = mini_batch_src[i],
+                                            target_input = mini_batch_trg[i],
+                                            src_input = mini_batch_hyp[i],
+                                            bleu = mini_batch_bleu[i],
+                                        )
                     #b = time.time() - start_time
                     #print("discriminator accuracy{:.2f}".format(discriminator_acc*100))
                     del target_tokens
@@ -634,12 +641,12 @@ def validate_and_save(
             and num_updates % cfg.dataset.validate_interval_updates == 0
         )
     ) and not cfg.dataset.disable_validation
-    # #test
+    #test
     #do_validate = True
     # Validate
     valid_losses = [None]
     if do_validate:
-        valid_losses = validate(cfg, trainer, task, epoch_itr, valid_subsets)
+        valid_losses = validate(cfg, trainer, task, epoch_itr, valid_subsets, user_parameter)
 
     should_stop |= should_stop_early(cfg, valid_losses[0])
     
@@ -671,6 +678,7 @@ def validate(
     task: tasks.FairseqTask,
     epoch_itr,
     subsets: List[str],
+    user_parameter,
 ) -> List[Optional[float]]:
     """Evaluate the model on the validation set(s) and return the losses."""
 
@@ -715,7 +723,7 @@ def validate(
         # don't pollute other aggregators (e.g., train meters)
         with metrics.aggregate(new_root=True) as agg:
             for sample in progress:
-                trainer.valid_step(sample)
+                trainer.valid_step(sample, user_parameter)
 
         # log validation stats
         stats = get_valid_stats(cfg, trainer, agg.get_smoothed_values())
@@ -752,14 +760,14 @@ def cli_main(
                         #'--label-smoothing', '0.1',
                         #'--seed', '2048',
                         #'--max-tokens', '200',
-                        '--batch-size', '32', #16
+                        '--batch-size', '256', #16
                         #'--max-epoch', '33',
                         '--lr-scheduler', 'inverse_sqrt',
                         '--weight-decay', '0.0',
                         '--user-dir', './user_dir',   
-                        '--criterion', 'pg_cross_entropy',
+                        '--criterion', 'ac_cross_entropy',
                         '--max-update', '800000', '--warmup-updates', '4000', '--warmup-init-lr' ,'1e-07',
-                        #'--no-progress-bar',
+                        '--no-progress-bar',
                         '--bpe','subword_nmt',
                         '--eval-bleu',
                         '--eval-bleu-args', '{"beam": 5, "max_len_a": 1.2, "max_len_b": 10}',

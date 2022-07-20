@@ -468,9 +468,9 @@ class TranslationTask(FairseqTask):
         hyps, refs = [], []
         for i in range(len(gen_out)):
             hyps.append(decode(gen_out[i][0]["tokens"]))
-            if user_parameter != None:
-                user_parameter["valid_srcs"].append(sample['net_input']['src_tokens'][i])
-                user_parameter["valid_hyps"].append(gen_out[i][0]["tokens"])
+            # if user_parameter != None:
+            #     user_parameter["valid_srcs"].append(sample['net_input']['src_tokens'][i])
+            #     user_parameter["valid_hyps"].append(gen_out[i][0]["tokens"])
             refs.append(
                 decode(
                     utils.strip_pad(sample["target"][i], self.tgt_dict.pad()),
